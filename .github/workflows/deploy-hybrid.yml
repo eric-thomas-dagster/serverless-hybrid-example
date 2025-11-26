@@ -87,7 +87,7 @@ jobs:
         with:
           context: ./code_locations/hybrid-location
           file: ./code_locations/hybrid-location/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.build-meta.outputs.tags }}
           labels: ${{ steps.build-meta.outputs.labels }}
