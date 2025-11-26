@@ -2,7 +2,6 @@ locations:
   - location_name: serverless-location
     code_source:
       package_name: serverless_location.definitions
-    working_directory: ./src/
     build:
       directory: .
     # Note: Serverless deployments don't use agent queues
