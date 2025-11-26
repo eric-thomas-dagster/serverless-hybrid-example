@@ -14,8 +14,7 @@ COPY src/ ./src/
 # Install dependencies using uv
 RUN uv pip install --system --no-cache -e .
 
-# Set the entrypoint for Dagster
+# Set the Dagster home directory
 ENV DAGSTER_HOME=/app/dagster_home
 
-# The Dagster agent will use this to load definitions
-ENTRYPOINT ["dagster"]
+# No ENTRYPOINT - Dagster Cloud agent provides the full command
