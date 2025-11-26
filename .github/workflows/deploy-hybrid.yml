@@ -96,9 +96,9 @@ jobs:
       - name: Set image tag for deployment
         id: image-tag
         run: |
-          # Use git SHA as tag (Dagster Cloud expects tags, not digests)
+          # Use tag with sha- prefix to match what metadata-action creates
           # Format: registry:tag
-          echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "tag=sha-${{ github.sha }}" >> $GITHUB_OUTPUT
 
   deploy-to-dagster-plus:
     runs-on: ubuntu-latest
