@@ -1,0 +1,64 @@
+"""
+Hybrid location assets for heavy computational workloads.
+This location is designed to run on self-hosted infrastructure with Dagster+ Hybrid deployment.
+"""
+import dagster as dg
+
+
+@dg.asset(
+    kinds={"snowflake", "python"},
+    description="Ingests large datasets from Snowflake data warehouse"
+)
+def raw_customer_transactions(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+    """Load raw transaction data from Snowflake."""
+    # In production: query Snowflake tables
+    # In demo_mode: generate sample transaction data
+    pass
+
+
+@dg.asset(
+    kinds={"python", "pandas"},
+    description="Performs complex transformations on transaction data",
+    deps=[raw_customer_transactions]
+)
+def transformed_transactions(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+    """Apply business rules and transformations to raw transactions."""
+    # In production: complex pandas transformations
+    # In demo_mode: generate transformed sample data
+    pass
+
+
+@dg.asset(
+    kinds={"python", "machine-learning"},
+    description="Trains ML model for fraud detection on transaction data",
+    deps=[transformed_transactions]
+)
+def fraud_detection_model(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+    """Train fraud detection model using transaction patterns."""
+    # In production: train ML model (CPU/GPU intensive)
+    # In demo_mode: generate mock model artifact
+    pass
+
+
+@dg.asset(
+    kinds={"snowflake", "python"},
+    description="Applies fraud model to transactions and writes results to Snowflake",
+    deps=[fraud_detection_model, transformed_transactions]
+)
+def fraud_scores(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+    """Score transactions for fraud probability and store in data warehouse."""
+    # In production: apply model and write to Snowflake
+    # In demo_mode: generate sample fraud scores
+    pass
+
+
+@dg.asset(
+    kinds={"snowflake", "reporting"},
+    description="Generates daily fraud analytics reports",
+    deps=[fraud_scores]
+)
+def daily_fraud_report(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+    """Create aggregated fraud analytics for business intelligence."""
+    # In production: create report in Snowflake
+    # In demo_mode: generate sample report
+    pass

@@ -1,0 +1,8 @@
+locations:
+  - location_name: serverless-location
+    code_source:
+      python_file: serverless_location/definitions.py
+    working_directory: src
+    executable_path: /usr/local/bin/python
+    # Note: Serverless deployments don't use agent queues, but including for reference
+    # agent_queue: serverless-queue

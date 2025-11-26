@@ -1,0 +1,9 @@
+locations:
+  - location_name: hybrid-location
+    code_source:
+      python_file: hybrid_location/definitions.py
+    working_directory: src
+    executable_path: /usr/local/bin/python
+    # Route this location to agents configured with the "hybrid-queue"
+    # This ensures heavy computational workloads run on agents with appropriate resources
+    agent_queue: hybrid-queue
