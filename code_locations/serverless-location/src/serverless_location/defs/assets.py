@@ -1,6 +1,12 @@
 """
 Serverless location assets for lightweight data processing.
 This location is designed to run on Dagster+ Serverless infrastructure.
+
+These assets demonstrate a simple data pipeline for user event analytics:
+1. Ingest events from API
+2. Clean and normalize the data
+3. Calculate daily metrics
+4. Generate engagement scores
 """
 import dagster as dg
 

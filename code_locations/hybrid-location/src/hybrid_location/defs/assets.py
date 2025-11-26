@@ -1,6 +1,15 @@
 """
 Hybrid location assets for heavy computational workloads.
 This location is designed to run on self-hosted infrastructure with Dagster+ Hybrid deployment.
+
+These assets demonstrate a complex ML pipeline for fraud detection:
+1. Ingest large transaction datasets from Snowflake
+2. Apply complex pandas transformations
+3. Train ML model for fraud detection (CPU/GPU intensive)
+4. Score transactions and write results back to Snowflake
+5. Generate business intelligence reports
+
+Routed to agents serving 'hybrid-queue' for specialized infrastructure.
 """
 import dagster as dg
 
