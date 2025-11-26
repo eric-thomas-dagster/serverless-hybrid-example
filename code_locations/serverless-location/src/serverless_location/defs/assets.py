@@ -17,8 +17,10 @@ import dagster as dg
 )
 def raw_user_events(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     """Ingest raw user event data from API."""
-    # In production: fetch from REST API
+    # In production: fetch from REST API (e.g., /api/v1/events)
     # In demo_mode: generate sample data
+    # Expected fields: user_id, event_type, timestamp, properties
+    context.log.info("Starting raw user events ingestion...")
     pass
 
 

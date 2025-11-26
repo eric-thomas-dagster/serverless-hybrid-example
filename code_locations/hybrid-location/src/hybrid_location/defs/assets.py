@@ -20,8 +20,11 @@ import dagster as dg
 )
 def raw_customer_transactions(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     """Load raw transaction data from Snowflake."""
-    # In production: query Snowflake tables
+    # In production: query Snowflake tables (e.g., PROD.TRANSACTIONS)
     # In demo_mode: generate sample transaction data
+    # Expected fields: transaction_id, customer_id, amount, timestamp, merchant
+    # Note: This runs on hybrid-queue with dedicated compute resources
+    context.log.info("Starting Snowflake transaction ingestion on hybrid-queue...")
     pass
 
 
