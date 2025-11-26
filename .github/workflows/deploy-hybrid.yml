@@ -95,9 +95,8 @@ jobs:
       - name: Set image tag for deployment
         id: image-tag
         run: |
-          # Extract just the image name and digest (without registry prefix)
-          # Registry is specified in dagster_cloud.yaml
-          echo "tag=hybrid-location@${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
+          # Pass only the digest - full image path is in dagster_cloud.yaml registry
+          echo "tag=${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
 
   deploy-to-dagster-plus:
     runs-on: ubuntu-latest
