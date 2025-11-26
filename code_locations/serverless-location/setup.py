@@ -1,7 +1,12 @@
 from setuptools import find_packages, setup
+from pathlib import Path
 
 # Read requirements from requirements.txt
-with open("requirements.txt") as f:
+# Use absolute path relative to this setup.py file
+setup_dir = Path(__file__).parent
+requirements_file = setup_dir / "requirements.txt"
+
+with open(requirements_file) as f:
     requirements = [
         line.strip()
         for line in f
