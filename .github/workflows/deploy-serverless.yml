@@ -30,6 +30,9 @@ jobs:
   dagster_cloud_serverless_deploy:
     name: Dagster Serverless Deploy
     runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: ./code_locations/serverless-location
 
     steps:
       - name: Prerun Checks
@@ -46,14 +49,14 @@ jobs:
         if: steps.prerun.outputs.result != 'skip'
         uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
         with:
-          command: "ci check --project-dir ${{ env.DAGSTER_CLOUD_YAML_PATH }} --dagster-cloud-yaml-path ${{ env.DAGSTER_CLOUD_FILE }}"
+          command: "ci check --project-dir . --dagster-cloud-yaml-path dagster_cloud.yaml"
 
       - name: Initialize build session
         id: ci-init
         uses: dagster-io/dagster-cloud-action/actions/utils/ci-init@v1.11.9
         with:
-          project_dir: ${{ env.DAGSTER_CLOUD_YAML_PATH }}
-          dagster_cloud_yaml_path: ${{ env.DAGSTER_CLOUD_FILE }}
+          project_dir: .
+          dagster_cloud_yaml_path: dagster_cloud.yaml
           deployment: 'prod'
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -87,7 +90,7 @@ jobs:
         if: steps.prerun.outputs.result != 'skip'
         uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
         with:
-          command: "ci notify --project-dir=${{ env.DAGSTER_CLOUD_YAML_PATH }}"
+          command: "ci notify --project-dir=."
 
       - name: Generate summary
         id: ci-summary
