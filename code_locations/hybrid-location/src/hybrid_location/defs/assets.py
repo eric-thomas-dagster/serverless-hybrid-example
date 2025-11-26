@@ -26,7 +26,7 @@ def raw_customer_transactions(context: dg.AssetExecutionContext) -> dg.Materiali
     # Note: This runs on hybrid-queue with dedicated compute resources
     context.log.info("Starting Snowflake transaction ingestion on hybrid-queue...")
     context.log.info("Demo: This asset runs on self-hosted agents with specialized resources")
-    context.log.info("Testing deployment with corrected image reference format")
+    context.log.info("Testing deployment with GHCR authentication configured")
     pass
 
 
