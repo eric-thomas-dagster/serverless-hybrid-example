@@ -95,8 +95,9 @@ jobs:
       - name: Set image tag for deployment
         id: image-tag
         run: |
-          # Use the image with digest for immutable reference
-          echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
+          # Extract just the image name and digest (without registry prefix)
+          # Registry is specified in dagster_cloud.yaml
+          echo "tag=hybrid-location@${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
 
   deploy-to-dagster-plus:
     runs-on: ubuntu-latest
