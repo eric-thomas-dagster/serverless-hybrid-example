@@ -1,7 +1,8 @@
 locations:
   - location_name: hybrid-location
     code_source:
-      package_name: hybrid_location
+      package_name: hybrid_location.definitions
+    working_directory: ./src/
     build:
       # Docker registry where images are pushed by GitHub Actions
       registry: ghcr.io/eric-thomas-dagster/serverless-hybrid-example/hybrid-location
