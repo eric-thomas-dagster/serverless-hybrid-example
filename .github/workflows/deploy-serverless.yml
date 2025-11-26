@@ -63,6 +63,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install setuptools
+        if: steps.prerun.outputs.result == 'pex-deploy'
+        run: pip install setuptools
+        shell: bash
+
       - name: Run PEX build
         id: run-pex-build
         if: steps.prerun.outputs.result == 'pex-deploy'
