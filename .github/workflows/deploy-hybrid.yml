@@ -18,11 +18,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DAGSTER_CLOUD_URL: "${{ secrets.DAGSTER_CLOUD_URL }}"
-  DAGSTER_CLOUD_API_TOKEN: "${{ secrets.DAGSTER_CLOUD_API_TOKEN }}"
-  DAGSTER_CLOUD_DEPLOYMENT: "prod"
+  DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+  DAGSTER_CLOUD_ORGANIZATION: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION }}
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/hybrid-location
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   validate-and-build:
@@ -97,16 +97,35 @@ jobs:
     needs: validate-and-build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
+    env:
+      DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+      DAGSTER_CLOUD_ORGANIZATION: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION }}
+      DAGSTER_CLOUD_YAML_PATH: './code_locations/hybrid-location'
+      DAGSTER_CLOUD_FILE: 'dagster_cloud.yaml'
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to Dagster+ Hybrid
-        uses: dagster-io/dagster-cloud-action/actions/deploy@v0.1
+      - name: Initialize build session
+        id: ci-init
+        uses: dagster-io/dagster-cloud-action/actions/utils/ci-init@v1.11.9
         with:
-          deployment: ${{ env.DAGSTER_CLOUD_DEPLOYMENT }}
-          organization_id: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION_ID }}
-          location: ./code_locations/hybrid-location
-          image: ${{ needs.validate-and-build.outputs.image }}
+          project_dir: ${{ env.DAGSTER_CLOUD_YAML_PATH }}
+          dagster_cloud_yaml_path: ${{ env.DAGSTER_CLOUD_FILE }}
+          deployment: 'prod'
+          image_tag: ${{ needs.validate-and-build.outputs.image }}
+
+      - name: Deploy to Dagster+ Hybrid
+        id: ci-deploy
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci deploy"
         env:
           DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+
+      - name: Generate summary
+        id: ci-summary
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci status --output-format=markdown >> $GITHUB_STEP_SUMMARY"

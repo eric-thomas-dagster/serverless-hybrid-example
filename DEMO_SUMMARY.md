@@ -144,9 +144,8 @@ uv run dg dev  # Opens UI at http://localhost:3000
 
 ### GitHub Secrets
 Both workflows require:
-- `DAGSTER_CLOUD_API_TOKEN`
-- `DAGSTER_CLOUD_ORGANIZATION_ID`
-- `DAGSTER_CLOUD_URL`
+- `DAGSTER_CLOUD_API_TOKEN` - Your Dagster+ API token
+- `DAGSTER_CLOUD_ORGANIZATION` - Your organization name (e.g., `myorg`)
 - `GITHUB_TOKEN` (automatically provided by GitHub Actions for GHCR)
 
 ### Dagster+ Setup

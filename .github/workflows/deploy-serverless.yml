@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'code_locations/serverless-location/**'
+      - '.github/workflows/deploy-serverless.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     paths:
@@ -13,48 +14,79 @@ on:
 
 concurrency:
   # Cancel in-progress runs on same branch
-  group: ${{ github.ref }}-serverless
+  group: ${{ github.ref }}/deploy-serverless
   cancel-in-progress: true
 
 env:
-  DAGSTER_CLOUD_URL: "${{ secrets.DAGSTER_CLOUD_URL }}"
-  DAGSTER_CLOUD_API_TOKEN: "${{ secrets.DAGSTER_CLOUD_API_TOKEN }}"
-  DAGSTER_CLOUD_DEPLOYMENT: "prod"
+  DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+  DAGSTER_CLOUD_ORGANIZATION: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION }}
+  ENABLE_FAST_DEPLOYS: 'true'
+  PYTHON_VERSION: '3.12'
+  DAGSTER_CLOUD_YAML_PATH: './code_locations/serverless-location'
+  DAGSTER_CLOUD_FILE: 'dagster_cloud.yaml'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  dagster-cloud-deploy:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./code_locations/serverless-location
+  dagster_cloud_serverless_deploy:
+    name: Dagster Serverless Deploy
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Prerun Checks
+        id: prerun
+        uses: dagster-io/dagster-cloud-action/actions/utils/prerun@v1.11.9
 
-      - name: Set up Python
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Validate configuration
+        id: ci-validate
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci check --project-dir ${{ env.DAGSTER_CLOUD_YAML_PATH }} --dagster-cloud-yaml-path ${{ env.DAGSTER_CLOUD_FILE }}"
+
+      - name: Initialize build session
+        id: ci-init
+        uses: dagster-io/dagster-cloud-action/actions/utils/ci-init@v1.11.9
+        with:
+          project_dir: ${{ env.DAGSTER_CLOUD_YAML_PATH }}
+          dagster_cloud_yaml_path: ${{ env.DAGSTER_CLOUD_FILE }}
+          deployment: 'prod'
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        id: setup-python
+        if: steps.prerun.outputs.result == 'pex-deploy'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - name: Run PEX build
+        id: run-pex-build
+        if: steps.prerun.outputs.result == 'pex-deploy'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
         with:
-          version: "latest"
+          command: "ci build --build-strategy=python-executable --python-version ${{ env.PYTHON_VERSION }}"
 
-      - name: Install dependencies
-        run: |
-          uv sync
-
-      - name: Validate Dagster definitions
-        run: |
-          uv run dg check defs
-
-      - name: Deploy to Dagster+ Serverless
-        uses: dagster-io/dagster-cloud-action/actions/deploy@v0.1
+      - name: Deploy to Dagster Cloud
+        id: ci-deploy
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
         with:
-          deployment: ${{ env.DAGSTER_CLOUD_DEPLOYMENT }}
-          organization_id: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION_ID }}
-          location: ./code_locations/serverless-location
-        env:
-          DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+          command: "ci deploy"
+
+      - name: Update PR comment
+        id: ci-notify
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci notify --project-dir=${{ env.DAGSTER_CLOUD_YAML_PATH }}"
+
+      - name: Generate summary
+        id: ci-summary
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci status --output-format=markdown >> $GITHUB_STEP_SUMMARY"

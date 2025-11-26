@@ -106,8 +106,7 @@ uv run dg list defs
 Add the following secrets to your GitHub repository:
 
 - `DAGSTER_CLOUD_API_TOKEN` - Your Dagster+ API token
-- `DAGSTER_CLOUD_ORGANIZATION_ID` - Your Dagster+ organization ID
-- `DAGSTER_CLOUD_URL` - Your Dagster+ instance URL (e.g., `https://myorg.dagster.cloud`)
+- `DAGSTER_CLOUD_ORGANIZATION` - Your Dagster+ organization name (e.g., `myorg`)
 
 **Note**: `GITHUB_TOKEN` is automatically provided by GitHub Actions for pushing to GitHub Container Registry.
 
