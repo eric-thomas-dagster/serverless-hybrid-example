@@ -4,8 +4,8 @@ locations:
       package_name: hybrid_location.definitions
     working_directory: ./src/
     build:
-      # Docker registry where images are pushed by GitHub Actions
-      registry: ghcr.io/eric-thomas-dagster/serverless-hybrid-example/hybrid-location
+      # Docker registry hostname - Dagster Cloud appends the image path from ci set-build-output
+      registry: ghcr.io
     # Route this location to agents configured with the "hybrid-queue"
     # This ensures heavy computational workloads run on agents with appropriate resources
     agent_queue: hybrid-queue
