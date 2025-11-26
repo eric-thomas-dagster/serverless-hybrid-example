@@ -30,9 +30,6 @@ jobs:
   dagster_cloud_serverless_deploy:
     name: Dagster Serverless Deploy
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        working-directory: ./code_locations/serverless-location
 
     steps:
       - name: Prerun Checks
@@ -49,14 +46,14 @@ jobs:
         if: steps.prerun.outputs.result != 'skip'
         uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
         with:
-          command: "ci check --project-dir . --dagster-cloud-yaml-path dagster_cloud.yaml"
+          command: "ci check --project-dir ${{ env.DAGSTER_CLOUD_YAML_PATH }} --dagster-cloud-yaml-path ${{ env.DAGSTER_CLOUD_FILE }}"
 
       - name: Initialize build session
         id: ci-init
         uses: dagster-io/dagster-cloud-action/actions/utils/ci-init@v1.11.9
         with:
-          project_dir: .
-          dagster_cloud_yaml_path: dagster_cloud.yaml
+          project_dir: ${{ env.DAGSTER_CLOUD_YAML_PATH }}
+          dagster_cloud_yaml_path: ${{ env.DAGSTER_CLOUD_FILE }}
           deployment: 'prod'
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -74,9 +71,10 @@ jobs:
       - name: Run PEX build
         id: run-pex-build
         if: steps.prerun.outputs.result == 'pex-deploy'
-        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
-        with:
-          command: "ci build --build-strategy=python-executable --python-version ${{ env.PYTHON_VERSION }}"
+        shell: bash
+        run: |
+          cd ${{ env.DAGSTER_CLOUD_YAML_PATH }}
+          $DAGSTER_CLOUD_PEX -m dagster_cloud_cli.entrypoint ci build --build-strategy=python-executable --python-version ${{ env.PYTHON_VERSION }}
 
       - name: Deploy to Dagster Cloud
         id: ci-deploy
@@ -90,7 +88,7 @@ jobs:
         if: steps.prerun.outputs.result != 'skip'
         uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
         with:
-          command: "ci notify --project-dir=."
+          command: "ci notify --project-dir=${{ env.DAGSTER_CLOUD_YAML_PATH }}"
 
       - name: Generate summary
         id: ci-summary
