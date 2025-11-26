@@ -34,7 +34,7 @@ jobs:
       run:
         working-directory: ./code_locations/hybrid-location
     outputs:
-      image: ${{ steps.build-meta.outputs.tags }}
+      image: ${{ steps.image-tag.outputs.tag }}
       image-digest: ${{ steps.build-push.outputs.digest }}
 
     steps:
@@ -92,6 +92,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Set image tag for deployment
+        id: image-tag
+        run: |
+          # Use the image with digest for immutable reference
+          echo "tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
+
   deploy-to-dagster-plus:
     runs-on: ubuntu-latest
     needs: validate-and-build
@@ -114,7 +120,14 @@ jobs:
           project_dir: ${{ env.DAGSTER_CLOUD_YAML_PATH }}
           dagster_cloud_yaml_path: ${{ env.DAGSTER_CLOUD_FILE }}
           deployment: 'prod'
-          image_tag: ${{ needs.validate-and-build.outputs.image }}
+
+      - name: Register Docker image build
+        id: set-build-output
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci set-build-output --location-name=hybrid-location --image-tag=${{ needs.validate-and-build.outputs.image }}"
+        env:
+          DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
 
       - name: Deploy to Dagster+ Hybrid
         id: ci-deploy
