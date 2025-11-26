@@ -20,7 +20,8 @@ def raw_user_events(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     # In production: fetch from REST API (e.g., /api/v1/events)
     # In demo_mode: generate sample data
     # Expected fields: user_id, event_type, timestamp, properties
-    context.log.info("Starting raw user events ingestion...")
+    context.log.info("Starting raw user events ingestion on Dagster+ Serverless...")
+    context.log.info("Demo: This asset runs on fully-managed serverless infrastructure")
     pass
 
 

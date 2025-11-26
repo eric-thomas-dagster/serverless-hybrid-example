@@ -2,6 +2,9 @@ locations:
   - location_name: hybrid-location
     code_source:
       package_name: hybrid_location
+    build:
+      # Docker registry where images are pushed by GitHub Actions
+      registry: ghcr.io/eric-thomas-dagster/serverless-hybrid-example/hybrid-location
     # Route this location to agents configured with the "hybrid-queue"
     # This ensures heavy computational workloads run on agents with appropriate resources
     agent_queue: hybrid-queue
