@@ -75,6 +75,7 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha,prefix={{branch}}-
+            type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set up Docker Buildx
@@ -95,9 +96,9 @@ jobs:
       - name: Set image tag for deployment
         id: image-tag
         run: |
-          # Pass digest with @ prefix to indicate it's a digest, not a tag
-          # Full image path is in dagster_cloud.yaml registry
-          echo "tag=@${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
+          # Use git SHA as tag (Dagster Cloud expects tags, not digests)
+          # Format: registry:tag
+          echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
   deploy-to-dagster-plus:
     runs-on: ubuntu-latest
