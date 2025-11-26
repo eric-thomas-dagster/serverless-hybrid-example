@@ -95,8 +95,9 @@ jobs:
       - name: Set image tag for deployment
         id: image-tag
         run: |
-          # Pass only the digest - full image path is in dagster_cloud.yaml registry
-          echo "tag=${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
+          # Pass digest with @ prefix to indicate it's a digest, not a tag
+          # Full image path is in dagster_cloud.yaml registry
+          echo "tag=@${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
 
   deploy-to-dagster-plus:
     runs-on: ubuntu-latest
