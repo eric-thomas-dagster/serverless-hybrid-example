@@ -205,15 +205,51 @@ Then in your locations:
 
 ## Repository Structure Patterns
 
+### Directory Organization Options
+
+**Important Note**: The directory structure is completely flexible. This repository uses `code_locations/` as an organizing folder, but customers commonly use:
+
+- **Root level**: Locations directly in repository root
+  ```
+  /
+    my-etl-pipeline/
+    ml-training/
+    analytics/
+  ```
+
+- **Custom folder name**: Any name that fits your organization
+  ```
+  /
+    apps/
+      analytics/
+      ml-training/
+    dagster-locations/
+      etl-pipeline/
+    pipelines/
+      data-eng/
+      data-science/
+  ```
+
+- **Mixed structure**: Locations at different levels
+  ```
+  /
+    core-etl/              ← Root level
+    ml/
+      training/            ← Nested
+      inference/           ← Nested
+  ```
+
+Choose whatever structure makes sense for your team. The workflows just need to reference the correct paths.
+
 ### Pattern 1: Separate dagster_cloud.yaml Files (This Repo)
 
-**Structure**:
+**Structure** (using `code_locations/` as an example):
 ```
 /
   .github/workflows/
     deploy-serverless.yml
     deploy-hybrid.yml
-  code_locations/
+  code_locations/           ← Can be named anything or omitted
     serverless-location/
       dagster_cloud.yaml      ← Location-specific YAML
       pyproject.toml
@@ -224,6 +260,26 @@ Then in your locations:
       Dockerfile
       pyproject.toml
       src/
+```
+
+**Alternative structures** (all valid):
+```
+# Root level
+/
+  my-serverless-app/
+    dagster_cloud.yaml
+    ...
+  my-hybrid-app/
+    dagster_cloud.yaml
+    ...
+
+# Custom folder name
+/
+  apps/
+    analytics/
+      dagster_cloud.yaml
+    ml-training/
+      dagster_cloud.yaml
 ```
 
 **Pros**:
@@ -608,6 +664,8 @@ If you start with the demo pattern (separate YAMLs) and want to migrate:
 
 This repository includes a complete example unified workflow at `.github/workflows/deploy-unified.yml.example`.
 
+⚠️ **IMPORTANT**: The example uses `code_locations/serverless-location` and `code_locations/hybrid-location` as examples. You **MUST** customize these paths to match your actual repository structure.
+
 **To use it:**
 
 1. **Review the example**:
@@ -615,10 +673,44 @@ This repository includes a complete example unified workflow at `.github/workflo
    cat .github/workflows/deploy-unified.yml.example
    ```
 
-2. **Customize for your setup**:
-   - Update location names and paths in the `env` section
+2. **Customize for your setup** (REQUIRED):
+
+   **Location Paths** - Update all occurrences to match YOUR structure:
+   ```yaml
+   # Examples of what to change:
+   # If your locations are at root level:
+   SERVERLESS_LOCATION_PATH: my-etl-pipeline
+   HYBRID_LOCATION_PATH: ml-training
+
+   # If you use a different folder name:
+   SERVERLESS_LOCATION_PATH: apps/analytics
+   HYBRID_LOCATION_PATH: apps/ml-training
+
+   # If you use mixed structure:
+   SERVERLESS_LOCATION_PATH: etl-pipeline
+   HYBRID_LOCATION_PATH: ml/training
+   ```
+
+   **Path Filters** - Update in `detect-changes` job:
+   ```yaml
+   filters: |
+     serverless:
+       - 'my-etl-pipeline/**'  # Match your actual path
+     hybrid:
+       - 'ml-training/**'       # Match your actual path
+   ```
+
+   **Trigger Paths** - Update in `on.push.paths` and `on.pull_request.paths`:
+   ```yaml
+   paths:
+     - 'my-etl-pipeline/**'   # Match your actual paths
+     - 'ml-training/**'        # Match your actual paths
+   ```
+
+   **Other Settings**:
+   - Update location names to match your `dagster_cloud.yaml` `location_name` values
    - Adjust Docker platform (ARM64 vs AMD64) if needed
-   - Modify registry settings for your container registry
+   - Modify registry settings for your container registry (GHCR, ECR, DockerHub)
 
 3. **Activate the unified workflow**:
    ```bash

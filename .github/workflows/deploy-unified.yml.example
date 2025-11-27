@@ -4,10 +4,33 @@
 # from a single workflow file. It detects which locations changed and builds/deploys
 # only what's needed.
 #
+# ⚠️ REQUIRED CONFIGURATION - UPDATE THESE VALUES FOR YOUR REPOSITORY ⚠️
+#
+# 1. Update location paths below to match YOUR directory structure:
+#    - Locations can be at root level (e.g., 'my-etl-location')
+#    - Or in a subdirectory (e.g., 'code_locations/my-etl-location', 'apps/pipelines', etc.)
+#    - The folder name 'code_locations' is just an example - use whatever structure you have
+#
+# 2. Update location names to match YOUR dagster_cloud.yaml location_name values
+#
+# 3. Update the path filters in the 'detect-changes' job to match YOUR paths
+#
+# 4. Update REGISTRY and IMAGE_NAME for your container registry (GHCR, ECR, etc.)
+#
+# 5. Update platform in Docker build (linux/arm64 or linux/amd64) based on your k8s cluster
+#
+# Example Directory Structures:
+#   Root level:              my-serverless-app/, my-hybrid-app/
+#   Organized folder:        code_locations/app1/, code_locations/app2/
+#   Custom naming:           apps/analytics/, apps/ml-training/
+#   Mixed structure:         etl-pipeline/, ml/training/, ml/inference/
+#
 # To use this workflow:
-# 1. Rename to deploy-unified.yml (remove .example)
-# 2. Disable or delete deploy-serverless.yml and deploy-hybrid.yml
-# 3. Adjust the location paths and build strategies as needed
+# 1. Customize all configuration values below
+# 2. Update path filters in detect-changes job
+# 3. Rename to deploy-unified.yml (remove .example)
+# 4. Disable or delete separate deployment workflows
+# 5. Test with a small change to verify paths and builds work
 #
 # Key Features:
 # - Path-based change detection
@@ -23,12 +46,14 @@ on:
       - main
       - master
     paths:
-      - 'code_locations/**'
+      # ⚠️ UPDATE THESE PATHS TO MATCH YOUR REPOSITORY STRUCTURE ⚠️
+      - 'code_locations/**'  # Change to your location directories
       - '.github/workflows/deploy-unified.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     paths:
-      - 'code_locations/**'
+      # ⚠️ UPDATE THESE PATHS TO MATCH YOUR REPOSITORY STRUCTURE ⚠️
+      - 'code_locations/**'  # Change to your location directories
 
 concurrency:
   group: ${{ github.ref }}/deploy-unified
@@ -39,14 +64,29 @@ env:
   DAGSTER_CLOUD_ORGANIZATION: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Configure your locations here
-  SERVERLESS_LOCATION_NAME: serverless-location
-  SERVERLESS_LOCATION_PATH: code_locations/serverless-location
+  # ⚠️ SERVERLESS LOCATION CONFIGURATION - UPDATE FOR YOUR SETUP ⚠️
+  # Examples:
+  #   Root level:      SERVERLESS_LOCATION_PATH: my-etl-pipeline
+  #   In subdirectory: SERVERLESS_LOCATION_PATH: apps/analytics
+  #   Custom naming:   SERVERLESS_LOCATION_PATH: dagster-locations/serverless-etl
+  SERVERLESS_LOCATION_NAME: serverless-location  # Must match dagster_cloud.yaml location_name
+  SERVERLESS_LOCATION_PATH: code_locations/serverless-location  # Path to location directory
 
-  HYBRID_LOCATION_NAME: hybrid-location
-  HYBRID_LOCATION_PATH: code_locations/hybrid-location
-  HYBRID_IMAGE_NAME: ${{ github.repository }}/hybrid-location
-  REGISTRY: ghcr.io
+  # ⚠️ HYBRID LOCATION CONFIGURATION - UPDATE FOR YOUR SETUP ⚠️
+  # Examples:
+  #   Root level:      HYBRID_LOCATION_PATH: ml-training
+  #   In subdirectory: HYBRID_LOCATION_PATH: apps/ml-training
+  #   Custom naming:   HYBRID_LOCATION_PATH: dagster-locations/gpu-workloads
+  HYBRID_LOCATION_NAME: hybrid-location  # Must match dagster_cloud.yaml location_name
+  HYBRID_LOCATION_PATH: code_locations/hybrid-location  # Path to location directory
+
+  # ⚠️ DOCKER REGISTRY CONFIGURATION - UPDATE FOR YOUR REGISTRY ⚠️
+  # Examples:
+  #   GHCR:  REGISTRY: ghcr.io, IMAGE_NAME: ${{ github.repository }}/my-location
+  #   ECR:   REGISTRY: 123456789.dkr.ecr.us-east-1.amazonaws.com, IMAGE_NAME: my-location
+  #   DockerHub: REGISTRY: docker.io, IMAGE_NAME: myorg/my-location
+  HYBRID_IMAGE_NAME: ${{ github.repository }}/hybrid-location  # Full image path without registry
+  REGISTRY: ghcr.io  # Container registry hostname
 
 jobs:
   # Detect which locations changed
@@ -63,6 +103,11 @@ jobs:
         uses: dorny/paths-filter@v2
         id: filter
         with:
+          # ⚠️ UPDATE THESE PATHS TO MATCH YOUR LOCATION DIRECTORIES ⚠️
+          # Examples:
+          #   Root level:      - 'my-etl-pipeline/**'
+          #   In subdirectory: - 'apps/analytics/**'
+          #   Custom naming:   - 'dagster-locations/serverless-etl/**'
           filters: |
             serverless:
               - 'code_locations/serverless-location/**'
