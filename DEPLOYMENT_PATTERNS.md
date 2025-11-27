@@ -139,22 +139,67 @@ When you **omit `agent_queue`** from a location, it uses the **default queue**:
 
 **Key Point**: Omitting `agent_queue` doesn't mean "serverless" - it means "use the default queue". Which infrastructure processes it depends on which agents are serving that queue.
 
-**Example - Hybrid Agent Configuration**:
+### The `includeDefaultQueue` Setting (Critical!)
+
+When deploying hybrid agents, the **`includeDefaultQueue`** setting controls whether the agent processes runs from the default queue:
+
+**`includeDefaultQueue: true`** (default behavior):
+- Agent processes its named queue(s) **AND** the default queue
+- Locations without `agent_queue` will run on this agent
+
+**`includeDefaultQueue: false`**:
+- Agent **ONLY** processes its explicitly named queue(s)
+- Ignores the default queue completely
+- Locations without `agent_queue` will NOT run on this agent
+
+**Example Configurations**:
+
 ```bash
-# This agent serves ONLY the "gpu-queue"
-helm install agent dagster-cloud/dagster-cloud-agent \
-  --set dagsterCloud.agentQueues[0]=gpu-queue
+# Hybrid agent that ONLY serves "hybrid-queue", ignores default queue
+# Use this when you want serverless to handle default queue runs
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=hybrid-queue \
+  --set dagsterCloud.includeDefaultQueue=false
 
-# This agent serves the default queue + "data-eng-queue"
-helm install agent dagster-cloud/dagster-cloud-agent \
-  --set dagsterCloud.agentQueues[0]=default \
-  --set dagsterCloud.agentQueues[1]=data-eng-queue
+# Hybrid agent that serves "gpu-queue" + default queue
+# Locations without agent_queue will run on this agent
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=gpu-queue \
+  --set dagsterCloud.includeDefaultQueue=true
 
-# This agent serves ALL queues (no queue specification)
-helm install agent dagster-cloud/dagster-cloud-agent
+# Agent that ONLY serves default queue
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.includeDefaultQueue=true
+
+# Multiple named queues, no default queue
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=data-eng-queue \
+  --set dagsterCloud.agentQueues[1]=ml-queue \
+  --set dagsterCloud.includeDefaultQueue=false
 ```
 
-If all your agents are hybrid agents serving the default queue, then locations without `agent_queue` will run on your hybrid infrastructure.
+**Best Practice for Mixed Serverless + Hybrid**:
+```bash
+# Deploy hybrid agents with includeDefaultQueue=false
+# This ensures serverless handles all default queue runs
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=hybrid-queue \
+  --set dagsterCloud.includeDefaultQueue=false
+```
+
+Then in your locations:
+```yaml
+# This runs on serverless (no agent_queue = default queue)
+- location_name: serverless-location
+  code_source: ...
+
+# This runs on hybrid agents (explicitly routed to hybrid-queue)
+- location_name: hybrid-location
+  code_source: ...
+  build:
+    registry: ghcr.io/...
+  agent_queue: hybrid-queue  # Routes to hybrid agents
+```
 
 ---
 
@@ -537,6 +582,8 @@ If you start with the demo pattern (separate YAMLs) and want to migrate:
 
 - **Purpose**: Route code locations to specific agents/infrastructure
 - **Default behavior**: Omitting `agent_queue` uses the default queue (not necessarily serverless!)
+- **`includeDefaultQueue` setting**: Critical for mixed environments - set to `false` on hybrid agents to prevent them from processing default queue runs
+- **Best practice for serverless + hybrid**: Deploy hybrid agents with `includeDefaultQueue=false` so serverless handles default queue
 - **Hybrid deployments**: Can specify `agent_queue` to route to specific agents, or omit to use default queue
 - **Queue routing**: Determined by which agents are configured to serve which queues
 - **Flexibility**: Can have multiple queues for different workload types, environments, or teams
