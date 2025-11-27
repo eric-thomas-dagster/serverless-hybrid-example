@@ -129,9 +129,32 @@ Agent queues route code locations to specific Dagster agents. Think of them as "
   agent_queue: ml-queue
 ```
 
-### Serverless Locations and Queues
+### Default Queue Behavior
 
-Serverless locations **do not use agent queues** - they run on Dagster+ managed infrastructure. If you omit `agent_queue`, the location deploys as serverless.
+When you **omit `agent_queue`** from a location, it uses the **default queue**:
+
+- **In serverless-only environments**: Runs on Dagster+ managed infrastructure
+- **In hybrid environments**: Runs on any agent serving the default queue (agents not configured to ignore it)
+- **In mixed environments**: Depends on which agents are serving the default queue
+
+**Key Point**: Omitting `agent_queue` doesn't mean "serverless" - it means "use the default queue". Which infrastructure processes it depends on which agents are serving that queue.
+
+**Example - Hybrid Agent Configuration**:
+```bash
+# This agent serves ONLY the "gpu-queue"
+helm install agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=gpu-queue
+
+# This agent serves the default queue + "data-eng-queue"
+helm install agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=default \
+  --set dagsterCloud.agentQueues[1]=data-eng-queue
+
+# This agent serves ALL queues (no queue specification)
+helm install agent dagster-cloud/dagster-cloud-agent
+```
+
+If all your agents are hybrid agents serving the default queue, then locations without `agent_queue` will run on your hybrid infrastructure.
 
 ---
 
@@ -512,10 +535,11 @@ If you start with the demo pattern (separate YAMLs) and want to migrate:
 
 ### Agent Queues
 
-- **Purpose**: Route code locations to specific infrastructure
-- **Serverless**: No agent_queue needed (uses Dagster+ infrastructure)
-- **Hybrid**: Specify agent_queue to route to your agents
-- **Flexibility**: Can have multiple queues for different workload types
+- **Purpose**: Route code locations to specific agents/infrastructure
+- **Default behavior**: Omitting `agent_queue` uses the default queue (not necessarily serverless!)
+- **Hybrid deployments**: Can specify `agent_queue` to route to specific agents, or omit to use default queue
+- **Queue routing**: Determined by which agents are configured to serve which queues
+- **Flexibility**: Can have multiple queues for different workload types, environments, or teams
 
 ### GitHub Actions
 
