@@ -81,11 +81,34 @@ env:
   HYBRID_LOCATION_PATH: code_locations/hybrid-location  # Path to location directory
 
   # ⚠️ DOCKER REGISTRY CONFIGURATION - UPDATE FOR YOUR REGISTRY ⚠️
+  # Choose the registry that matches your container registry login step below.
+  #
   # Examples:
-  #   GHCR:  REGISTRY: ghcr.io, IMAGE_NAME: ${{ github.repository }}/my-location
-  #   ECR:   REGISTRY: 123456789.dkr.ecr.us-east-1.amazonaws.com, IMAGE_NAME: my-location
-  #   DockerHub: REGISTRY: docker.io, IMAGE_NAME: myorg/my-location
-  HYBRID_IMAGE_NAME: ${{ github.repository }}/hybrid-location  # Full image path without registry
+  #   GHCR (GitHub Container Registry):
+  #     REGISTRY: ghcr.io
+  #     HYBRID_IMAGE_NAME: ${{ github.repository }}/hybrid-location
+  #
+  #   AWS ECR:
+  #     REGISTRY: 123456789012.dkr.ecr.us-east-1.amazonaws.com
+  #     HYBRID_IMAGE_NAME: my-hybrid-location
+  #
+  #   DockerHub:
+  #     REGISTRY: docker.io
+  #     HYBRID_IMAGE_NAME: myorg/my-hybrid-location
+  #
+  #   Google Container Registry (GCR):
+  #     REGISTRY: gcr.io
+  #     HYBRID_IMAGE_NAME: my-project-id/my-hybrid-location
+  #
+  #   Google Artifact Registry (GAR):
+  #     REGISTRY: us-docker.pkg.dev
+  #     HYBRID_IMAGE_NAME: my-project-id/my-repo/my-hybrid-location
+  #
+  #   Azure Container Registry (ACR):
+  #     REGISTRY: myregistry.azurecr.io
+  #     HYBRID_IMAGE_NAME: my-hybrid-location
+  #
+  HYBRID_IMAGE_NAME: ${{ github.repository }}/hybrid-location  # Image path (without registry hostname)
   REGISTRY: ghcr.io  # Container registry hostname
 
 jobs:
@@ -227,12 +250,69 @@ jobs:
           uv sync
           uv run dg check defs
 
-      - name: Log in to GitHub Container Registry
+      # ⚠️ CONTAINER REGISTRY LOGIN - UNCOMMENT THE ONE YOU USE ⚠️
+      # Building and deploying the docker image requires a login step specific
+      # to your container registry. Uncomment the appropriate section below.
+
+      # GitHub Container Registry (GHCR) - ACTIVE BY DEFAULT
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # # AWS Elastic Container Registry (ECR)
+      # # https://github.com/aws-actions/amazon-ecr-login
+      # # Requires: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION secrets
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v2
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+      # - name: Login to ECR
+      #   uses: aws-actions/amazon-ecr-login@v2
+
+      # # DockerHub
+      # # https://github.com/docker/login-action#docker-hub
+      # # Requires: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN secrets
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # # Google Container Registry (GCR)
+      # # https://github.com/docker/login-action#google-container-registry-gcr
+      # # Requires: GCR_JSON_KEY secret (service account key JSON)
+      # - name: Login to GCR
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: gcr.io
+      #     username: _json_key
+      #     password: ${{ secrets.GCR_JSON_KEY }}
+
+      # # Google Artifact Registry (GAR)
+      # # https://github.com/docker/login-action#google-artifact-registry-gar
+      # # Requires: GCR_JSON_KEY secret (service account key JSON)
+      # - name: Login to GAR
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: us-docker.pkg.dev  # Change region as needed
+      #     username: _json_key
+      #     password: ${{ secrets.GCR_JSON_KEY }}
+
+      # # Azure Container Registry (ACR)
+      # # https://github.com/docker/login-action#azure-container-registry-acr
+      # # Requires: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET secrets
+      # # Update REGISTRY env var to your ACR hostname
+      # - name: Login to Azure Container Registry
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: ${{ env.REGISTRY }}  # e.g., myregistry.azurecr.io
+      #     username: ${{ secrets.AZURE_CLIENT_ID }}
+      #     password: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Extract Docker metadata
         id: build-meta
