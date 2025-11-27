@@ -1,0 +1,278 @@
+# Unified Dagster+ Deployment Workflow
+#
+# This workflow demonstrates how to deploy both Serverless and Hybrid locations
+# from a single workflow file. It detects which locations changed and builds/deploys
+# only what's needed.
+#
+# To use this workflow:
+# 1. Rename to deploy-unified.yml (remove .example)
+# 2. Disable or delete deploy-serverless.yml and deploy-hybrid.yml
+# 3. Adjust the location paths and build strategies as needed
+#
+# Key Features:
+# - Path-based change detection
+# - Conditional builds (only builds what changed)
+# - Parallel builds when both locations change
+# - Single workflow to maintain
+
+name: Unified Dagster+ Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'code_locations/**'
+      - '.github/workflows/deploy-unified.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'code_locations/**'
+
+concurrency:
+  group: ${{ github.ref }}/deploy-unified
+  cancel-in-progress: true
+
+env:
+  DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+  DAGSTER_CLOUD_ORGANIZATION: ${{ secrets.DAGSTER_CLOUD_ORGANIZATION }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Configure your locations here
+  SERVERLESS_LOCATION_NAME: serverless-location
+  SERVERLESS_LOCATION_PATH: code_locations/serverless-location
+
+  HYBRID_LOCATION_NAME: hybrid-location
+  HYBRID_LOCATION_PATH: code_locations/hybrid-location
+  HYBRID_IMAGE_NAME: ${{ github.repository }}/hybrid-location
+  REGISTRY: ghcr.io
+
+jobs:
+  # Detect which locations changed
+  detect-changes:
+    runs-on: ubuntu-22.04
+    outputs:
+      serverless: ${{ steps.filter.outputs.serverless }}
+      hybrid: ${{ steps.filter.outputs.hybrid }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            serverless:
+              - 'code_locations/serverless-location/**'
+            hybrid:
+              - 'code_locations/hybrid-location/**'
+
+  # Deploy Serverless Location
+  deploy-serverless:
+    name: Deploy Serverless Location
+    runs-on: ubuntu-22.04
+    needs: detect-changes
+    # Only run if serverless location changed (or on manual trigger)
+    if: |
+      needs.detect-changes.outputs.serverless == 'true' ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Prerun Checks
+        id: prerun
+        uses: dagster-io/dagster-cloud-action/actions/utils/prerun@v1.11.9
+
+      - name: Validate serverless configuration
+        id: ci-validate
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci check --project-dir ${{ env.SERVERLESS_LOCATION_PATH }} --dagster-cloud-yaml-path dagster_cloud.yaml"
+
+      - name: Initialize serverless build session
+        id: ci-init
+        uses: dagster-io/dagster-cloud-action/actions/utils/ci-init@v1.11.9
+        with:
+          project_dir: ${{ env.SERVERLESS_LOCATION_PATH }}
+          dagster_cloud_yaml_path: dagster_cloud.yaml
+          deployment: 'prod'
+
+      - name: Set up Python 3.12
+        id: setup-python
+        if: steps.prerun.outputs.result == 'pex-deploy'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install setuptools
+        if: steps.prerun.outputs.result == 'pex-deploy'
+        run: pip install setuptools
+        shell: bash
+
+      - name: Run PEX build
+        id: run-pex-build
+        if: steps.prerun.outputs.result == 'pex-deploy'
+        shell: bash
+        run: |
+          cd ${{ env.SERVERLESS_LOCATION_PATH }}
+          $DAGSTER_CLOUD_PEX -m dagster_cloud_cli.entrypoint ci build --build-strategy=python-executable --python-version 3.12
+
+      - name: Deploy serverless to Dagster Cloud
+        id: ci-deploy
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci deploy"
+
+      - name: Update PR comment
+        id: ci-notify
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci notify --project-dir=${{ env.SERVERLESS_LOCATION_PATH }}"
+
+      - name: Generate serverless summary
+        id: ci-summary
+        if: steps.prerun.outputs.result != 'skip'
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci status --output-format=markdown >> $GITHUB_STEP_SUMMARY"
+
+  # Build and Deploy Hybrid Location
+  deploy-hybrid:
+    name: Deploy Hybrid Location
+    runs-on: ubuntu-22.04
+    needs: detect-changes
+    # Only run if hybrid location changed (or on manual trigger)
+    if: |
+      needs.detect-changes.outputs.hybrid == 'true' ||
+      github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Validate hybrid Dagster definitions
+        working-directory: ${{ env.HYBRID_LOCATION_PATH }}
+        run: |
+          uv sync
+          uv run dg check defs
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: build-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.HYBRID_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push hybrid Docker image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ env.HYBRID_LOCATION_PATH }}
+          file: ./${{ env.HYBRID_LOCATION_PATH }}/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.build-meta.outputs.tags }}
+          labels: ${{ steps.build-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set image tag for deployment
+        id: image-tag
+        run: |
+          echo "tag=sha-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Initialize hybrid build session
+        id: ci-init
+        uses: dagster-io/dagster-cloud-action/actions/utils/ci-init@v1.11.9
+        with:
+          project_dir: ${{ env.HYBRID_LOCATION_PATH }}
+          dagster_cloud_yaml_path: dagster_cloud.yaml
+          deployment: 'prod'
+
+      - name: Register Docker image build
+        id: set-build-output
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci set-build-output --location-name=${{ env.HYBRID_LOCATION_NAME }} --image-tag=${{ steps.image-tag.outputs.tag }}"
+        env:
+          DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+
+      - name: Deploy hybrid to Dagster+ Hybrid
+        id: ci-deploy
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci deploy"
+        env:
+          DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
+
+      - name: Generate hybrid summary
+        id: ci-summary
+        uses: dagster-io/dagster-cloud-action/actions/utils/dagster-cloud-cli@v1.11.9
+        with:
+          command: "ci status --output-format=markdown >> $GITHUB_STEP_SUMMARY"
+
+  # Summary job that runs after both deployments
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-22.04
+    needs: [detect-changes, deploy-serverless, deploy-hybrid]
+    # Always run this job, even if some jobs were skipped
+    if: always()
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "# Unified Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.detect-changes.outputs.serverless }}" == "true" ]; then
+            echo "✅ Serverless location deployed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ Serverless location skipped (no changes)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.detect-changes.outputs.hybrid }}" == "true" ]; then
+            echo "✅ Hybrid location deployed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ Hybrid location skipped (no changes)" >> $GITHUB_STEP_SUMMARY
+          fi

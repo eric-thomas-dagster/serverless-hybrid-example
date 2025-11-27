@@ -365,6 +365,14 @@ on:
 
 ### Pattern B: Single Unified Workflow
 
+**See Example**: `.github/workflows/deploy-unified.yml.example`
+
+This repository includes a complete example unified workflow that demonstrates:
+- Path-based change detection
+- Conditional builds (only builds what changed)
+- Parallel execution when both locations change
+- Proper handling of both PEX and Docker builds
+
 **File**: `.github/workflows/deploy.yml`
 
 **Approach 1: Build Everything**
@@ -593,6 +601,49 @@ If you start with the demo pattern (separate YAMLs) and want to migrate:
 - **Separate workflows**: Better for demos, independent teams, or different requirements
 - **Unified workflow**: Better for production, single team, consistent deployment
 - **Choice depends on**: Team structure, deployment complexity, and maintenance preferences
+
+---
+
+## Using the Example Unified Workflow
+
+This repository includes a complete example unified workflow at `.github/workflows/deploy-unified.yml.example`.
+
+**To use it:**
+
+1. **Review the example**:
+   ```bash
+   cat .github/workflows/deploy-unified.yml.example
+   ```
+
+2. **Customize for your setup**:
+   - Update location names and paths in the `env` section
+   - Adjust Docker platform (ARM64 vs AMD64) if needed
+   - Modify registry settings for your container registry
+
+3. **Activate the unified workflow**:
+   ```bash
+   # Rename to activate
+   mv .github/workflows/deploy-unified.yml.example \
+      .github/workflows/deploy-unified.yml
+
+   # Disable current separate workflows
+   mv .github/workflows/deploy-serverless.yml \
+      .github/workflows/deploy-serverless.yml.disabled
+   mv .github/workflows/deploy-hybrid.yml \
+      .github/workflows/deploy-hybrid.yml.disabled
+
+   # Commit and push
+   git add .github/workflows/
+   git commit -m "Switch to unified deployment workflow"
+   git push
+   ```
+
+**What the unified workflow provides:**
+- ✅ Automatic change detection (only builds what changed)
+- ✅ Parallel builds when both locations change
+- ✅ Single file to maintain
+- ✅ Deployment summary showing what was deployed
+- ✅ Proper handling of PEX (serverless) and Docker (hybrid) builds
 
 ---
 
