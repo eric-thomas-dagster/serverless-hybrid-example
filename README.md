@@ -164,7 +164,26 @@ Each code location has its own `dagster_cloud.yaml` that specifies:
 
 ### Agent Queue Configuration
 
-The **hybrid-location** is configured with `agent_queue: hybrid-queue` in its `dagster_cloud.yaml`. This routes all requests from this location to agents specifically configured to serve the "hybrid-queue".
+**IMPORTANT**: Agent queue routing requires configuration on **BOTH** sides:
+
+**1. Code Location (dagster_cloud.yaml)**
+
+The **hybrid-location** is configured with `agent_queue: hybrid-queue` in its `dagster_cloud.yaml`:
+
+```yaml
+# code_locations/hybrid-location/dagster_cloud.yaml
+locations:
+  - location_name: hybrid-location
+    agent_queue: hybrid-queue  # ← Routes to "hybrid-queue"
+    build:
+      registry: ghcr.io/YOUR_ORG/YOUR_REPO/hybrid-location
+```
+
+**2. Agent (see examples below)**
+
+Your agent must be configured to serve the same queue name.
+
+This two-way configuration routes all requests from the hybrid-location to agents specifically configured to serve "hybrid-queue".
 
 **Benefits**:
 - **Dedicated Resources**: Route ML/heavy compute to GPU-enabled agents
@@ -201,6 +220,23 @@ environment:
   - name: DAGSTER_CLOUD_AGENT_QUEUES_ADDITIONAL_QUEUES
     value: "hybrid-queue"
 ```
+
+### Verifying Your Configuration
+
+**Check that both sides are configured:**
+
+1. **Code Location**: Verify `agent_queue` is set in your `dagster_cloud.yaml`
+   ```bash
+   # For this repo, check:
+   cat code_locations/hybrid-location/dagster_cloud.yaml | grep agent_queue
+   # Should show: agent_queue: hybrid-queue
+   ```
+
+2. **Agent**: Verify agent is running and serving the correct queue in Dagster+ UI
+   - Navigate to **Deployment** → **Agents**
+   - Check the **Queues** column shows "hybrid-queue"
+
+3. **Test**: Materialize an asset from hybrid-location and verify it executes on your agent
 
 ### Multiple Agent Scenarios
 

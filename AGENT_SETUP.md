@@ -9,6 +9,39 @@ The `hybrid-location` is configured with `agent_queue: hybrid-queue` in its `dag
 - Only agents configured to serve "hybrid-queue" will process these requests
 - This allows you to dedicate specific infrastructure (GPU, high memory, etc.) for this workload
 
+## How Agent Queue Routing Works
+
+**IMPORTANT**: Agent queue routing requires configuration on **BOTH** sides:
+
+### 1. Code Location Configuration (dagster_cloud.yaml)
+
+Your code location must specify which queue to use:
+
+```yaml
+# code_locations/hybrid-location/dagster_cloud.yaml
+locations:
+  - location_name: hybrid-location
+    code_source:
+      package_name: hybrid_location.definitions
+    working_directory: ./src/
+    build:
+      registry: ghcr.io/YOUR_ORG/YOUR_REPO/hybrid-location
+    agent_queue: hybrid-queue  # ← Routes this location to "hybrid-queue"
+```
+
+**Key Points**:
+- Without `agent_queue`, the location uses the **default queue**
+- In a mixed serverless + hybrid environment, serverless locations should **omit** `agent_queue` (they'll run on Dagster+ managed infrastructure)
+- Hybrid locations should **specify** `agent_queue` to route to your self-hosted agents
+
+### 2. Agent Configuration (see below)
+
+Your agent must be configured to serve the queue name specified in the code location:
+- Set `additionalQueues: ["hybrid-queue"]` to serve the "hybrid-queue"
+- Set `includeDefaultQueue: false` to prevent processing serverless workloads
+
+**Both configurations must match for routing to work correctly!**
+
 ## Agent Queue Configuration
 
 ### Why Use Agent Queues?
@@ -196,18 +229,50 @@ agentQueues:
 
 ## Verifying Agent Configuration
 
-### Check Agent Status
+### Verify Both Sides of Configuration
+
+**1. Check Code Location Configuration**
+
+Verify your `dagster_cloud.yaml` includes the `agent_queue`:
+```bash
+# In code_locations/hybrid-location/dagster_cloud.yaml
+grep -A 2 "agent_queue" dagster_cloud.yaml
+```
+
+Expected output:
+```yaml
+agent_queue: hybrid-queue
+```
+
+**2. Check Agent Status**
 
 In the Dagster+ UI:
 1. Navigate to **Deployment** → **Agents**
 2. Verify your agent appears with status "Running"
-3. Check the **Queues** column shows "default, hybrid-queue"
+3. Check the **Queues** column shows "hybrid-queue" (and NOT "default" if `includeDefaultQueue: false`)
 
-### Test Queue Routing
+**3. Test Queue Routing**
 
 1. **Materialize an asset** from the hybrid-location
 2. **Check the run details** - it should show `agent_queue: hybrid-queue`
 3. **Verify execution** happens on the correct agent (check agent logs)
+
+### Common Configuration Mistakes
+
+❌ **Agent configured but code location missing `agent_queue`**
+- Code location will use default queue
+- In mixed environments, serverless infrastructure will try to run it
+- Result: May work or fail depending on environment
+
+❌ **Code location has `agent_queue` but agent not configured for that queue**
+- Runs will stay queued indefinitely
+- No agent available to process the queue
+- Result: Jobs never execute
+
+✅ **Both configured correctly**
+- Code location specifies: `agent_queue: hybrid-queue`
+- Agent serves: `additionalQueues: ["hybrid-queue"]`
+- Result: Jobs route correctly to your infrastructure
 
 ### Agent Logs
 
