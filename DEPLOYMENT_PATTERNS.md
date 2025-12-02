@@ -156,26 +156,29 @@ When deploying hybrid agents, the **`includeDefaultQueue`** setting controls whe
 
 ```bash
 # Hybrid agent that ONLY serves "hybrid-queue", ignores default queue
-# Use this when you want serverless to handle default queue runs
+# RECOMMENDED for mixed serverless + hybrid: Let serverless handle default queue runs
 helm install dagster-agent dagster-cloud/dagster-cloud-agent \
   --set dagsterCloud.agentQueues[0]=hybrid-queue \
   --set dagsterCloud.includeDefaultQueue=false
 
-# Hybrid agent that serves "gpu-queue" + default queue
-# Locations without agent_queue will run on this agent
-helm install dagster-agent dagster-cloud/dagster-cloud-agent \
-  --set dagsterCloud.agentQueues[0]=gpu-queue \
-  --set dagsterCloud.includeDefaultQueue=true
-
-# Agent that ONLY serves default queue
-helm install dagster-agent dagster-cloud/dagster-cloud-agent \
-  --set dagsterCloud.includeDefaultQueue=true
-
 # Multiple named queues, no default queue
+# RECOMMENDED for mixed serverless + hybrid environments
 helm install dagster-agent dagster-cloud/dagster-cloud-agent \
   --set dagsterCloud.agentQueues[0]=data-eng-queue \
   --set dagsterCloud.agentQueues[1]=ml-queue \
   --set dagsterCloud.includeDefaultQueue=false
+
+# ⚠️ NOT RECOMMENDED for mixed serverless + hybrid: Hybrid agent serving default queue
+# This will cause errors when serverless locations (without agent_queue) are picked up by hybrid agents
+# Only use if you have NO serverless locations
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.agentQueues[0]=gpu-queue \
+  --set dagsterCloud.includeDefaultQueue=true
+
+# Agent that ONLY serves default queue (hybrid-only environment)
+# Only use if you have NO serverless locations
+helm install dagster-agent dagster-cloud/dagster-cloud-agent \
+  --set dagsterCloud.includeDefaultQueue=true
 ```
 
 **Best Practice for Mixed Serverless + Hybrid**:

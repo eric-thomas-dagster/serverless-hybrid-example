@@ -180,7 +180,7 @@ services:
   dagster-cloud-agent:
     image: dagster/dagster-cloud-agent:latest
     environment:
-      DAGSTER_CLOUD_AGENT_QUEUES_INCLUDE_DEFAULT_QUEUE: "true"
+      DAGSTER_CLOUD_AGENT_QUEUES_INCLUDE_DEFAULT_QUEUE: "false"
       DAGSTER_CLOUD_AGENT_QUEUES_ADDITIONAL_QUEUES: "hybrid-queue"
 ```
 
@@ -188,7 +188,7 @@ services:
 ```yaml
 dagsterCloud:
   agentQueues:
-    includeDefaultQueue: true
+    includeDefaultQueue: false
     additionalQueues:
       - hybrid-queue
 ```
@@ -197,7 +197,7 @@ dagsterCloud:
 ```yaml
 environment:
   - name: DAGSTER_CLOUD_AGENT_QUEUES_INCLUDE_DEFAULT_QUEUE
-    value: "true"
+    value: "false"
   - name: DAGSTER_CLOUD_AGENT_QUEUES_ADDITIONAL_QUEUES
     value: "hybrid-queue"
 ```

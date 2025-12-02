@@ -38,7 +38,7 @@ services:
       DAGSTER_CLOUD_DEPLOYMENT: "prod"
       DAGSTER_CLOUD_URL: "${DAGSTER_CLOUD_URL}"
       # Agent queue configuration
-      DAGSTER_CLOUD_AGENT_QUEUES_INCLUDE_DEFAULT_QUEUE: "true"
+      DAGSTER_CLOUD_AGENT_QUEUES_INCLUDE_DEFAULT_QUEUE: "false"
       DAGSTER_CLOUD_AGENT_QUEUES_ADDITIONAL_QUEUES: "hybrid-queue"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -72,7 +72,7 @@ dagsterCloud:
 
   # Agent queue configuration
   agentQueues:
-    includeDefaultQueue: true
+    includeDefaultQueue: false
     additionalQueues:
       - hybrid-queue
 
@@ -111,7 +111,7 @@ environment:
   - name: DAGSTER_CLOUD_DEPLOYMENT
     value: prod
   - name: DAGSTER_CLOUD_AGENT_QUEUES_INCLUDE_DEFAULT_QUEUE
-    value: "true"
+    value: "false"
   - name: DAGSTER_CLOUD_AGENT_QUEUES_ADDITIONAL_QUEUES
     value: "hybrid-queue"
 
@@ -122,12 +122,12 @@ memory: 16384  # 16 GB
 
 ## Understanding `include_default_queue`
 
-Setting `include_default_queue: true` is **critical** for production deployments:
+The `include_default_queue` setting controls whether hybrid agents process serverless workloads:
 
-- **true**: Agent serves both "hybrid-queue" AND unspecified code locations
-- **false**: Agent ONLY serves "hybrid-queue", ignoring other locations
+- **false**: Agent ONLY serves "hybrid-queue", ignoring the default queue (recommended for mixed serverless + hybrid environments)
+- **true**: Agent serves both "hybrid-queue" AND the default queue (processes unspecified code locations)
 
-**Recommendation**: Set to `true` unless you have multiple specialized agents.
+**Recommendation**: Set to `false` for mixed serverless + hybrid deployments. This ensures serverless locations are handled by Dagster+ managed infrastructure, not by your hybrid agents which would fail trying to run serverless workloads.
 
 ## Multiple Agent Configurations
 
@@ -138,7 +138,7 @@ Run multiple agents serving the same queue for redundancy:
 **Agent 1:**
 ```yaml
 agentQueues:
-  includeDefaultQueue: true
+  includeDefaultQueue: false
   additionalQueues:
     - hybrid-queue
 ```
@@ -146,7 +146,7 @@ agentQueues:
 **Agent 2 (identical configuration):**
 ```yaml
 agentQueues:
-  includeDefaultQueue: true
+  includeDefaultQueue: false
   additionalQueues:
     - hybrid-queue
 ```
@@ -284,7 +284,7 @@ docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
 
 ## Best Practices
 
-1. **Always use `includeDefaultQueue: true`** unless you have a specific reason not to
+1. **Use `includeDefaultQueue: false` for mixed serverless + hybrid environments** to ensure serverless locations run on Dagster+ managed infrastructure
 2. **Use descriptive queue names** that indicate the workload type (e.g., `gpu-queue`, `high-memory-queue`)
 3. **Run multiple agents** serving the same queue for high availability
 4. **Monitor agent resource usage** to ensure adequate capacity
